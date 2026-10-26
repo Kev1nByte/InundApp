@@ -66,4 +66,6 @@
     >
         + Reportar inundación
     </button>
+    
+@include('pages.reporte-modal')
 @endsection
