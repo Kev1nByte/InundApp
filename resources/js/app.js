@@ -21,12 +21,152 @@ document.addEventListener('DOMContentLoaded', () => {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(map);
+  
+    // Selección de ubicación para el reporte.
+    const selectLocationButton = document.getElementById(
+        'select-location-button'
+    );
 
-    // Marcador provisional para comprobar que el mapa funciona.
-    L.marker(paitaCoordinates)
-        .addTo(map)
-        .bindPopup('Paita, Piura')
-        .openPopup();
+    const locationInput = document.getElementById('report-location');
+    const latitudeInput = document.getElementById('report-latitude');
+    const longitudeInput = document.getElementById('report-longitude');
+
+    let locationMarker = null;
+    let selectingLocation = false;
+
+    // Marcador provisional que sigue el cursor.
+    const previewIcon = L.divIcon({
+        className: 'location-preview-icon',
+        html: '<span class="location-pin"></span>',
+        iconSize: [28, 36],
+        iconAnchor: [14, 34]
+    });
+
+    let previewMarker = null;
+
+    selectLocationButton?.addEventListener('click', () => {
+        if (reportModal) {
+            reportModal.hidden = true;
+        }
+
+        document.body.style.overflow = '';
+
+        selectingLocation = true;
+        mapElement.classList.add('map-selecting-location');
+
+        if (!previewMarker) {
+            previewMarker = L.marker(map.getCenter(), {
+                icon: previewIcon,
+                interactive: false,
+                zIndexOffset: 1000
+            }).addTo(map);
+        } else {
+            previewMarker.setLatLng(map.getCenter()).addTo(map);
+        }
+
+        mapElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+    });
+
+    // El icono sigue el cursor mientras se selecciona.
+    map.on('mousemove', (event) => {
+        if (selectingLocation && previewMarker) {
+            previewMarker.setLatLng(event.latlng);
+        }
+    });
+
+    // En móvil, el primer toque mueve el icono y el siguiente confirma.
+    map.on('click', (event) => {
+        if (!selectingLocation) {
+            return;
+        }
+
+        const { lat, lng } = event.latlng;
+
+        latitudeInput.value = lat.toFixed(7);
+        longitudeInput.value = lng.toFixed(7);
+
+        if (locationMarker) {
+            locationMarker.setLatLng(event.latlng);
+        } else {
+            locationMarker = L.marker(event.latlng).addTo(map);
+        }
+
+        locationMarker
+            .bindPopup('Ubicación seleccionada para el reporte')
+            .openPopup();
+
+        locationInput.value =
+            `Latitud: ${lat.toFixed(5)}, Longitud: ${lng.toFixed(5)}`;
+
+        selectingLocation = false;
+        mapElement.classList.remove('map-selecting-location');
+
+        if (previewMarker) {
+            map.removeLayer(previewMarker);
+        }
+
+        if (reportModal) {
+            reportModal.hidden = false;
+            document.body.style.overflow = 'hidden';
+        }
+    });
+
+
+    // El botón activa el modo de selección en el mapa.
+    selectLocationButton?.addEventListener('click', () => {
+        if (reportModal) {
+            reportModal.hidden = true;
+        }
+
+        document.body.style.overflow = '';
+        selectingLocation = true;
+
+        mapElement.classList.add('map-selecting-location');
+
+        map.getContainer().style.cursor = 'crosshair';
+
+        mapElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+        });
+    });
+
+    // Al hacer clic en el mapa, se registra el punto elegido.
+    map.on('click', (event) => {
+        if (!selectingLocation) {
+            return;
+        }
+
+        const { lat, lng } = event.latlng;
+
+        latitudeInput.value = lat.toFixed(7);
+        longitudeInput.value = lng.toFixed(7);
+
+        if (locationMarker) {
+            locationMarker.setLatLng(event.latlng);
+        } else {
+            locationMarker = L.marker(event.latlng).addTo(map);
+        }
+
+        locationMarker.bindPopup('Ubicación seleccionada para el reporte').openPopup();
+
+        locationInput.value =
+            `Latitud: ${lat.toFixed(5)}, Longitud: ${lng.toFixed(5)}`;
+
+        selectingLocation = false;
+        mapElement.classList.remove('map-selecting-location');
+
+        map.getContainer().style.cursor = '';
+
+        if (reportModal) {
+            reportModal.hidden = false;
+            document.body.style.overflow = 'hidden';
+        }
+    });
+
     
     // Elementos del formulario modal.
     const reportButton = document.getElementById('report-button');

@@ -23,16 +23,43 @@
         </header>
 
         <form id="flood-report-form">
+            
             <div class="form-group">
                 <label for="report-location">Ubicación de la calle</label>
+
                 <input
                     id="report-location"
                     name="location"
                     type="text"
-                    placeholder="Ej. Av. principal, Paita"
+                    placeholder="Selecciona un punto en el mapa"
+                    readonly
                     required
-                    maxlength="150"
                 >
+
+                <button
+                    id="select-location-button"
+                    class="select-location-button"
+                    type="button"
+                >
+                    <span aria-hidden="true">📍</span>
+                    Seleccionar en el mapa
+                </button>
+
+                <input
+                    id="report-latitude"
+                    name="latitude"
+                    type="hidden"
+                    required
+                >
+
+                <input
+                    id="report-longitude"
+                    name="longitude"
+                    type="hidden"
+                    required
+                >
+
+                <small>Selecciona la ubicación exacta de la calle afectada.</small>
             </div>
 
             <div class="form-group">
