@@ -23,8 +23,12 @@
         </header>
 
 
-    <form id="flood-report-form">
-        <!-- PASO 1: DATOS -->
+    <form
+        id="flood-report-form"
+        data-store-url="{{ route('reportes.store') }}"
+    >
+        @csrf
+        
         <div id="report-step-data">
             <div class="report-step-indicator">
                 <span class="active">1. Datos</span>

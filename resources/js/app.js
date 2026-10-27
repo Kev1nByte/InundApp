@@ -6,23 +6,22 @@ import 'leaflet/dist/leaflet.css';
 document.addEventListener('DOMContentLoaded', () => {
     const mapElement = document.getElementById('map');
 
-    // Evitar inicializar el mapa en páginas que no lo contienen.
+    // Esta página no necesita inicializar el mapa si no lo contiene.
     if (!mapElement) {
         return;
     }
 
-    // Coordenadas aproximadas del centro de Paita, Piura.
+    // Mapa centrado en Paita, Piura.
     const paitaCoordinates = [-5.0892, -81.1144];
 
     const map = L.map(mapElement).setView(paitaCoordinates, 14);
 
-    // Mapa base de OpenStreetMap.
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
         maxZoom: 19
     }).addTo(map);
-  
-    // Selección de ubicación para el reporte.
+
+    // Elementos del mapa y selección de ubicación.
     const selectLocationButton = document.getElementById(
         'select-location-button'
     );
@@ -31,10 +30,57 @@ document.addEventListener('DOMContentLoaded', () => {
     const latitudeInput = document.getElementById('report-latitude');
     const longitudeInput = document.getElementById('report-longitude');
 
-    let locationMarker = null;
-    let selectingLocation = false;
+    const reportButton = document.getElementById('report-button');
+    const reportModal = document.getElementById('report-modal');
+    const closeReportModal = document.getElementById('close-report-modal');
+    const reportForm = document.getElementById('flood-report-form');
 
-    // Marcador provisional que sigue el cursor.
+    const reportMessage = document.getElementById('report-form-message');
+    const photoInput = document.getElementById('report-photo');
+
+    const reportStepData = document.getElementById('report-step-data');
+    const reportStepReview = document.getElementById('report-step-review');
+
+    const backToReport = document.getElementById('back-to-report');
+    const confirmReport = document.getElementById('confirm-report');
+
+    const reviewLocation = document.getElementById('review-location');
+    const reviewCoordinates = document.getElementById('review-coordinates');
+    const reviewSeverity = document.getElementById('review-severity');
+    const reviewDescription = document.getElementById('review-description');
+
+    const reviewPhotoContainer = document.getElementById(
+        'review-photo-container'
+    );
+    const reviewPhoto = document.getElementById('review-photo');
+    const reviewMessage = document.getElementById('review-message');
+
+    const severityLabels = {
+        low: 'Agua acumulada',
+        medium: 'Inundación importante',
+        high: 'Intransitable'
+    };
+
+    let locationMarker = null;
+    let previewMarker = null;
+    let selectingLocation = false;
+    let reviewPhotoUrl = null;
+
+    const showReviewMessage = (message) => {
+        if (!reviewMessage) return;
+
+        reviewMessage.textContent = message;
+        reviewMessage.hidden = false;
+    };
+
+    const showFormMessage = (message) => {
+        if (!reportMessage) return;
+
+        reportMessage.textContent = message;
+        reportMessage.hidden = false;
+    };
+
+    // Icono provisional para seleccionar una ubicación.
     const previewIcon = L.divIcon({
         className: 'location-preview-icon',
         html: '<span class="location-pin"></span>',
@@ -42,17 +88,53 @@ document.addEventListener('DOMContentLoaded', () => {
         iconAnchor: [14, 34]
     });
 
-    let previewMarker = null;
+    // Abrir el formulario.
+    reportButton?.addEventListener('click', () => {
+        if (!reportModal) return;
 
+        reportModal.hidden = false;
+        document.body.style.overflow = 'hidden';
+        closeReportModal?.focus();
+    });
+
+    // Cerrar el formulario.
+    const closeModal = () => {
+        if (!reportModal) return;
+
+        reportModal.hidden = true;
+        document.body.style.overflow = '';
+        reportButton?.focus();
+    };
+
+    closeReportModal?.addEventListener('click', closeModal);
+
+    reportModal?.addEventListener('click', (event) => {
+        if (event.target === reportModal) {
+            closeModal();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (
+            event.key === 'Escape' &&
+            reportModal &&
+            !reportModal.hidden
+        ) {
+            closeModal();
+        }
+    });
+
+    // Activar el modo de selección de ubicación.
     selectLocationButton?.addEventListener('click', () => {
         if (reportModal) {
             reportModal.hidden = true;
         }
 
         document.body.style.overflow = '';
-
         selectingLocation = true;
+
         mapElement.classList.add('map-selecting-location');
+        map.getContainer().style.cursor = 'crosshair';
 
         if (!previewMarker) {
             previewMarker = L.marker(map.getCenter(), {
@@ -61,7 +143,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 zIndexOffset: 1000
             }).addTo(map);
         } else {
-            previewMarker.setLatLng(map.getCenter()).addTo(map);
+            previewMarker
+                .setLatLng(map.getCenter())
+                .addTo(map);
         }
 
         mapElement.scrollIntoView({
@@ -70,18 +154,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // El icono sigue el cursor mientras se selecciona.
+    // El marcador provisional sigue el cursor.
     map.on('mousemove', (event) => {
         if (selectingLocation && previewMarker) {
             previewMarker.setLatLng(event.latlng);
         }
     });
 
-    // En móvil, el primer toque mueve el icono y el siguiente confirma.
+    // Registrar la ubicación seleccionada.
     map.on('click', (event) => {
-        if (!selectingLocation) {
-            return;
-        }
+        if (!selectingLocation) return;
 
         const { lat, lng } = event.latlng;
 
@@ -103,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         selectingLocation = false;
         mapElement.classList.remove('map-selecting-location');
+        map.getContainer().style.cursor = '';
 
         if (previewMarker) {
             map.removeLayer(previewMarker);
@@ -114,147 +197,21 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-
-    // El botón activa el modo de selección en el mapa.
-    selectLocationButton?.addEventListener('click', () => {
-        if (reportModal) {
-            reportModal.hidden = true;
-        }
-
-        document.body.style.overflow = '';
-        selectingLocation = true;
-
-        mapElement.classList.add('map-selecting-location');
-
-        map.getContainer().style.cursor = 'crosshair';
-
-        mapElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-        });
-    });
-
-    // Al hacer clic en el mapa, se registra el punto elegido.
-    map.on('click', (event) => {
-        if (!selectingLocation) {
-            return;
-        }
-
-        const { lat, lng } = event.latlng;
-
-        latitudeInput.value = lat.toFixed(7);
-        longitudeInput.value = lng.toFixed(7);
-
-        if (locationMarker) {
-            locationMarker.setLatLng(event.latlng);
-        } else {
-            locationMarker = L.marker(event.latlng).addTo(map);
-        }
-
-        locationMarker.bindPopup('Ubicación seleccionada para el reporte').openPopup();
-
-        locationInput.value =
-            `Latitud: ${lat.toFixed(5)}, Longitud: ${lng.toFixed(5)}`;
-
-        selectingLocation = false;
-        mapElement.classList.remove('map-selecting-location');
-
-        map.getContainer().style.cursor = '';
-
-        if (reportModal) {
-            reportModal.hidden = false;
-            document.body.style.overflow = 'hidden';
-        }
-    });
-
-    
-    // Elementos del formulario modal.
-    const reportButton = document.getElementById('report-button');
-    const reportModal = document.getElementById('report-modal');
-    const closeReportModal = document.getElementById('close-report-modal');
-    const reportForm = document.getElementById('flood-report-form');
-
-    // Abrir el modal.
-    reportButton?.addEventListener('click', () => {
-        if (!reportModal) return;
-
-        reportModal.hidden = false;
-        document.body.style.overflow = 'hidden';
-
-        closeReportModal?.focus();
-    });
-
-    // Cerrar el modal.
-    const closeModal = () => {
-        if (!reportModal) return;
-
-        reportModal.hidden = true;
-        document.body.style.overflow = '';
-        reportButton?.focus();
-    };
-
-    closeReportModal?.addEventListener('click', closeModal);
-
-    // Cerrar al pulsar fuera del formulario.
-    reportModal?.addEventListener('click', (event) => {
-        if (event.target === reportModal) {
-            closeModal();
-        }
-    });
-
-    // Cerrar con la tecla Escape.
-    document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape' && reportModal && !reportModal.hidden) {
-            closeModal();
-        }
-    });
-
-    
-    // Validación del formulario de inundaciones.
-    const reportMessage = document.getElementById('report-form-message');
-    const photoInput = document.getElementById('report-photo');
-
-    
-    const reportStepData = document.getElementById('report-step-data');
-    const reportStepReview = document.getElementById('report-step-review');
-
-    const backToReport = document.getElementById('back-to-report');
-    const confirmReport = document.getElementById('confirm-report');
-
-    const reviewLocation = document.getElementById('review-location');
-    const reviewCoordinates = document.getElementById('review-coordinates');
-    const reviewSeverity = document.getElementById('review-severity');
-    const reviewDescription = document.getElementById('review-description');
-
-    const reviewPhotoContainer = document.getElementById('review-photo-container');
-    const reviewPhoto = document.getElementById('review-photo');
-    const reviewMessage = document.getElementById('review-message');
-
-    const severityLabels = {
-        low: 'Agua acumulada',
-        medium: 'Inundación importante',
-        high: 'Intransitable'
-    };
-
-    let reviewPhotoUrl = null;
-
-    const showReviewMessage = (text) => {
-        reviewMessage.textContent = text;
-        reviewMessage.hidden = false;
-    };
-
+    // Preparar la revisión del reporte.
     reportForm?.addEventListener('submit', (event) => {
         event.preventDefault();
 
-        if (!reportForm.reportValidity()) {
-            return;
-        }
+        if (!reportForm.reportValidity()) return;
 
         const latitude = latitudeInput.value;
         const longitude = longitudeInput.value;
-        const severity = document.getElementById('report-severity').value;
-        const description = document.getElementById('report-description').value.trim();
-        const photo = document.getElementById('report-photo').files[0];
+        const severity = document.getElementById(
+            'report-severity'
+        ).value;
+        const description = document.getElementById(
+            'report-description'
+        ).value.trim();
+        const photo = photoInput?.files[0];
 
         if (
             !locationInput.value.trim() ||
@@ -267,34 +224,40 @@ document.addEventListener('DOMContentLoaded', () => {
             Number(longitude) < -180 ||
             Number(longitude) > 180
         ) {
-            const message = document.getElementById('report-form-message');
-            message.textContent = 'Selecciona una ubicación válida en el mapa.';
-            message.hidden = false;
+            showFormMessage(
+                'Selecciona una ubicación válida en el mapa.'
+            );
             return;
         }
 
         if (!severityLabels[severity] || !description) {
+            showFormMessage(
+                'Completa el nivel de inundación y la descripción.'
+            );
             return;
         }
 
         if (photo) {
-            const validTypes = ['image/jpeg', 'image/png', 'image/webp'];
+            const validTypes = [
+                'image/jpeg',
+                'image/png',
+                'image/webp'
+            ];
 
-            if (!validTypes.includes(photo.type) ||
-                photo.size > 5 * 1024 * 1024) {
-                const message = document.getElementById('report-form-message');
-                message.textContent =
-                    'Selecciona una imagen JPG, PNG o WebP de máximo 5 MB.';
-                message.hidden = false;
+            if (
+                !validTypes.includes(photo.type) ||
+                photo.size > 5 * 1024 * 1024
+            ) {
+                showFormMessage(
+                    'Selecciona una imagen JPG, PNG o WebP de máximo 5 MB.'
+                );
                 return;
             }
         }
 
-        // Preparar el resumen de revisión.
         reviewLocation.textContent = locationInput.value;
         reviewCoordinates.textContent =
             `Latitud: ${latitude} · Longitud: ${longitude}`;
-
         reviewSeverity.textContent = severityLabels[severity];
         reviewDescription.textContent = description;
 
@@ -305,23 +268,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (photo) {
             reviewPhotoUrl = URL.createObjectURL(photo);
-
-            reviewPhoto.onload = () => {
-                reviewPhotoContainer.hidden = false;
-            };
-
-            reviewPhoto.onerror = () => {
-                reviewPhotoContainer.hidden = true;
-                showReviewMessage('No se pudo mostrar la fotografía seleccionada.');
-            };
-
             reviewPhoto.src = reviewPhotoUrl;
+            reviewPhotoContainer.hidden = false;
         } else {
             reviewPhoto.removeAttribute('src');
             reviewPhotoContainer.hidden = true;
         }
 
-        document.getElementById('report-form-message').hidden = true;
+        reportMessage.hidden = true;
         reviewMessage.hidden = true;
 
         reportStepData.hidden = true;
@@ -336,7 +290,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Regresar al formulario sin perder los datos.
+    // Volver a editar sin perder los datos.
     backToReport?.addEventListener('click', () => {
         reportStepReview.hidden = true;
         reportStepData.hidden = false;
@@ -344,89 +298,128 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('report-modal-title').textContent =
             'Reportar inundación';
 
+        reviewMessage.hidden = true;
+
         document.getElementById('report-description').focus();
     });
 
-    // Confirmación provisional: todavía no guarda en la base de datos.
-    confirmReport?.addEventListener('click', () => {
-        showReviewMessage(
-            'La revisión está lista. El siguiente paso es conectar la confirmación con el guardado del reporte.'
+    // Confirmar y enviar el reporte al backend.
+    confirmReport?.addEventListener('click', async () => {
+        const storeUrl = reportForm?.dataset.storeUrl;
+
+        if (!storeUrl) {
+            showReviewMessage(
+                'No se encontró la ruta para guardar el reporte. ' +
+                'Revisa la configuración del formulario.'
+            );
+            return;
+        }
+
+        const csrfToken =
+            reportForm.querySelector('input[name="_token"]')?.value ||
+            document.querySelector('meta[name="csrf-token"]')?.content;
+
+        if (!csrfToken) {
+            showReviewMessage(
+                'No se encontró el token de seguridad. ' +
+                'Recarga la página e inténtalo nuevamente.'
+            );
+            return;
+        }
+
+        const formData = new FormData(reportForm);
+
+        // Asegurar los nombres esperados por Laravel.
+        formData.set('latitude', latitudeInput.value);
+        formData.set('longitude', longitudeInput.value);
+        formData.set(
+            'severity',
+            document.getElementById('report-severity').value
         );
-    });
+        formData.set(
+            'description',
+            document.getElementById('report-description').value.trim()
+        );
 
-
-    document.addEventListener('DOMContentLoaded', () => {
-        const evidence = document.getElementById('evidence');
-        const preview = document.getElementById('photo-preview');
-        const form = document.getElementById('flood-report-form');
-        const message = document.getElementById('report-message');
-
-        if (evidence && preview) {
-            let previewUrl = null;
-
-            evidence.addEventListener('change', () => {
-                if (previewUrl) {
-                    URL.revokeObjectURL(previewUrl);
-                    previewUrl = null;
-                }
-
-                const file = evidence.files[0];
-
-                if (!file) {
-                    preview.removeAttribute('src');
-                    preview.hidden = true;
-                    return;
-                }
-
-                if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-                    evidence.value = '';
-                    preview.removeAttribute('src');
-                    preview.hidden = true;
-
-                    if (message) {
-                        message.textContent = 'Selecciona una imagen JPG, PNG o WEBP.';
-                    }
-                    return;
-                }
-
-                if (file.size > 5 * 1024 * 1024) {
-                    evidence.value = '';
-                    preview.removeAttribute('src');
-                    preview.hidden = true;
-
-                    if (message) {
-                        message.textContent = 'La imagen no debe superar los 5 MB.';
-                    }
-                    return;
-                }
-
-                if (message) {
-                    message.textContent = '';
-                }
-
-                previewUrl = URL.createObjectURL(file);
-                preview.src = previewUrl;
-                preview.hidden = false;
-            });
+        if (photoInput?.files[0]) {
+            formData.set('photo', photoInput.files[0]);
+        } else {
+            formData.delete('photo');
         }
 
-        if (form) {
-            form.addEventListener('submit', (event) => {
-                event.preventDefault();
+        confirmReport.disabled = true;
+        confirmReport.textContent = 'Guardando reporte...';
+        reviewMessage.hidden = true;
 
-                if (!form.reportValidity()) {
-                    return;
-                }
-
-                if (message) {
-                    message.textContent =
-                        'El formulario está validado, pero todavía falta implementar el guardado del reporte.';
-                }
+        try {
+            const response = await fetch(storeUrl, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken
+                },
+                body: formData
             });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                if (response.status === 422 && result.errors) {
+                    const errors = Object.values(result.errors).flat();
+                    throw new Error(errors.join(' '));
+                }
+
+                throw new Error(
+                    result.message ||
+                    'No se pudo guardar el reporte.'
+                );
+            }
+
+            
+            const successMessage =
+                result.message || 'Reporte registrado correctamente.';
+
+            // Liberar la URL temporal de la vista previa.
+            if (reviewPhotoUrl) {
+                URL.revokeObjectURL(reviewPhotoUrl);
+                reviewPhotoUrl = null;
+            }
+
+            // Limpiar el formulario para el siguiente reporte.
+            reportForm.reset();
+
+            reviewPhoto.removeAttribute('src');
+            reviewPhotoContainer.hidden = true;
+
+            // Regresar al primer paso.
+            reportStepReview.hidden = true;
+            reportStepData.hidden = false;
+
+            document.getElementById('report-modal-title').textContent =
+                'Reportar inundación';
+
+            // Cerrar el modal.
+            if (reportModal) {
+                reportModal.hidden = true;
+                document.body.style.overflow = '';
+            }
+
+            // Mostrar el mensaje de éxito fuera del modal.
+            showFormMessage(successMessage);
+
+            // Restaurar el botón para futuros reportes.
+            confirmReport.disabled = false;
+            confirmReport.textContent = 'Confirmar reporte';
+
+
+        } catch (error) {
+            showReviewMessage(
+                error.message ||
+                'Ocurrió un error al guardar el reporte.'
+            );
+
+            confirmReport.disabled = false;
+            confirmReport.textContent = 'Confirmar reporte';
         }
     });
-
-
 });
-
-
