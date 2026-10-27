@@ -21,6 +21,153 @@ document.addEventListener('DOMContentLoaded', () => {
         maxZoom: 19
     }).addTo(map);
 
+    // Capa independiente para los reportes guardados.
+    const reportsLayer = L.layerGroup().addTo(map);
+
+    // Colores según la gravedad del reporte.
+    
+    // Colores e iconos según la gravedad del reporte.
+    const severityStyles = {
+        low: {
+            color: '#eab308',
+            icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3C9.5 7 6 10.3 6 14a6 6 0 0 0 12 0c0-3.7-3.5-7-6-11Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        },
+        medium: {
+            color: '#f97316',
+            icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9c2.25-2 4.5-2 6.75 0s4.5 2 6.75 0S21 7 23 9M1 15c2.25-2 4.5-2 6.75 0s4.5 2 6.75 0 4.5-2 6.75 0 2.5 1 3.5 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>'
+        },
+        high: {
+            color: '#ef4444',
+            icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 22 21H2L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 9v5m0 3h.01" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>'
+        }
+    };
+
+
+    // Consultar los reportes registrados en Laravel.
+    const loadReports = async () => {
+        try {
+            const response = await fetch('/reportes', {
+                headers: {
+                    Accept: 'application/json'
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('No se pudieron cargar los reportes.');
+            }
+
+            const reports = await response.json();
+
+            reportsLayer.clearLayers();
+
+            reports.forEach((report) => {
+                const latitude = Number(report.latitude);
+                const longitude = Number(report.longitude);
+
+                if (
+                    !Number.isFinite(latitude) ||
+                    !Number.isFinite(longitude) ||
+                    latitude < -90 ||
+                    latitude > 90 ||
+                    longitude < -180 ||
+                    longitude > 180
+                ) {
+                    return;
+                }
+
+                
+                const style = severityStyles[report.severity] || {
+                    color: '#64748b',
+                    icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="7" fill="currentColor"/></svg>'
+                };
+
+                const markerIcon = L.divIcon({
+                    className: 'flood-report-marker-wrapper',
+                    html: `
+                        <span class="flood-report-marker"
+                            style="--marker-color: ${style.color}">
+                            ${style.icon}
+                        </span>
+                    `,
+                    iconSize: [38, 38],
+                    iconAnchor: [19, 19],
+                    popupAnchor: [0, -21]
+                });
+
+                const marker = L.marker(
+                    [latitude, longitude],
+                    { icon: markerIcon }
+                );
+
+
+                // Construir el popup sin insertar texto del usuario como HTML.
+                const popup = document.createElement('div');
+
+                const title = document.createElement('strong');
+                title.textContent =
+                    severityLabels[report.severity] || 'Reporte de inundación';
+
+                const description = document.createElement('p');
+                description.textContent = report.description || 'Sin descripción';
+
+                const status = document.createElement('p');
+                status.textContent = `Estado: ${report.status || 'Sin estado'}`;
+
+                popup.append(title, description, status);
+
+                if (report.created_at) {
+                    const date = new Date(report.created_at);
+
+                    const dateElement = document.createElement('p');
+                    dateElement.textContent = Number.isNaN(date.getTime())
+                        ? ''
+                        : `Fecha: ${date.toLocaleString('es-PE')}`;
+
+                    popup.appendChild(dateElement);
+                }
+
+                if (report.photo_path) {
+                const photo = document.createElement('img');
+
+                photo.src = report.photo_path;
+                photo.alt = 'Fotografía del reporte de inundación';
+                photo.loading = 'lazy';
+
+                photo.style.display = 'block';
+                photo.style.width = '100%';
+                photo.style.maxHeight = '180px';
+                photo.style.objectFit = 'cover';
+                photo.style.borderRadius = '8px';
+                photo.style.marginTop = '10px';
+                photo.style.cursor = 'pointer';
+
+                // Permitir abrir la imagen completa al pulsarla.
+                photo.addEventListener('click', () => {
+                    window.open(
+                        report.photo_path,
+                        '_blank',
+                        'noopener,noreferrer'
+                    );
+                });
+
+                popup.appendChild(photo);
+            }
+
+                //marker.bindPopup(popup);
+                marker.bindPopup(popup, {
+                    maxWidth: 280,
+                    minWidth: 220
+                });
+                marker.addTo(reportsLayer);
+            });
+        } catch (error) {
+            console.error('Error al cargar los reportes:', error);
+        }
+    };
+
+    // Mostrar los reportes existentes al abrir el mapa.
+    loadReports();
+
     // Elementos del mapa y selección de ubicación.
     const selectLocationButton = document.getElementById(
         'select-location-button'
@@ -377,7 +524,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
             
             const successMessage =
-                result.message || 'Reporte registrado correctamente.';
+                result.message || 'Reporte registrado correctamente.';4
+
+                // Actualizar los marcadores con los datos guardados en el servidor.
+                await loadReports();    
 
             // Liberar la URL temporal de la vista previa.
             if (reviewPhotoUrl) {

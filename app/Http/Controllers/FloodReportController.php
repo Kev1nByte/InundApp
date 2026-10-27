@@ -56,4 +56,23 @@ class FloodReportController extends Controller
             'report_id' => $report->id,
         ], 201);
     }
+    
+    public function index()
+    {
+        $reports = FloodReport::query()
+            ->select([
+                'id',
+                'latitude',
+                'longitude',
+                'severity',
+                'description',
+                'photo_path',
+                'status',
+                'created_at',
+            ])
+            ->latest()
+            ->get();
+
+        return response()->json($reports);
+    }
 }

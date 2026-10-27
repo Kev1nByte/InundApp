@@ -28,7 +28,7 @@
         data-store-url="{{ route('reportes.store') }}"
     >
         @csrf
-        
+
         <div id="report-step-data">
             <div class="report-step-indicator">
                 <span class="active">1. Datos</span>
@@ -84,16 +84,30 @@
             </div>
 
             <div class="form-group">
-                <label for="report-photo">Fotografía</label>
-                <input
+                <label for="report-photo">Fotografía de la inundación</label>
+
+                 <!-- <input
                     id="report-photo"
                     name="photo"
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     required
+                > -->
+
+                <input
+                    id="report-photo"
+                    name="photo"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    capture="environment"
+                    required
                 >
-                <small>JPG, PNG o WebP. Máximo 5 MB.</small>
+
+                <small>
+                    Toma una fotografía de la calle afectada. Máximo 5 MB.
+                </small>
             </div>
+
 
             <p id="report-form-message" class="form-message" hidden></p>
 
