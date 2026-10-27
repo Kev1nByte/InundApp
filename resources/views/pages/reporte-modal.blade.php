@@ -22,8 +22,15 @@
             </button>
         </header>
 
-        <form id="flood-report-form">
-            
+
+    <form id="flood-report-form">
+        <!-- PASO 1: DATOS -->
+        <div id="report-step-data">
+            <div class="report-step-indicator">
+                <span class="active">1. Datos</span>
+                <span>2. Revisar</span>
+            </div>
+
             <div class="form-group">
                 <label for="report-location">Ubicación de la calle</label>
 
@@ -41,23 +48,11 @@
                     class="select-location-button"
                     type="button"
                 >
-                    <span aria-hidden="true">📍</span>
-                    Seleccionar en el mapa
+                    📍 Seleccionar en el mapa
                 </button>
 
-                <input
-                    id="report-latitude"
-                    name="latitude"
-                    type="hidden"
-                    required
-                >
-
-                <input
-                    id="report-longitude"
-                    name="longitude"
-                    type="hidden"
-                    required
-                >
+                <input id="report-latitude" name="latitude" type="hidden">
+                <input id="report-longitude" name="longitude" type="hidden">
 
                 <small>Selecciona la ubicación exacta de la calle afectada.</small>
             </div>
@@ -78,19 +73,20 @@
                     id="report-description"
                     name="description"
                     rows="3"
-                    placeholder="Describe qué sucede en esta calle..."
                     maxlength="1000"
+                    placeholder="Describe qué sucede en esta calle..."
                     required
                 ></textarea>
             </div>
 
             <div class="form-group">
-                <label for="report-photo">Fotografía (opcional)</label>
+                <label for="report-photo">Fotografía</label>
                 <input
                     id="report-photo"
                     name="photo"
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
+                    required
                 >
                 <small>JPG, PNG o WebP. Máximo 5 MB.</small>
             </div>
@@ -98,8 +94,64 @@
             <p id="report-form-message" class="form-message" hidden></p>
 
             <button class="submit-report-button" type="submit">
-                Continuar con el reporte
+                Revisar reporte →
             </button>
-        </form>
+        </div>
+
+        <!-- PASO 2: REVISIÓN -->
+        <div id="report-step-review" hidden>
+            <div class="report-step-indicator">
+                <span>1. Datos</span>
+                <span class="active">2. Revisar</span>
+            </div>
+
+            <h3>Revisa tu reporte</h3>
+            <p>Verifica la información antes de confirmar.</p>
+
+            <div class="report-review-card">
+                <div class="review-item">
+                    <span>📍 Ubicación</span>
+                    <strong id="review-location">—</strong>
+                    <small id="review-coordinates"></small>
+                </div>
+
+                <div class="review-item">
+                    <span>🌊 Nivel de inundación</span>
+                    <strong id="review-severity">—</strong>
+                </div>
+
+                <div class="review-item">
+                    <span>📝 Descripción</span>
+                    <p id="review-description">—</p>
+                </div>
+
+                <div class="review-item" id="review-photo-container" hidden>
+                    <span>📷 Fotografía</span>
+                    <img id="review-photo" alt="Fotografía adjunta">
+                </div>
+            </div>
+
+            <p id="review-message" class="form-message" hidden></p>
+
+            <div class="review-actions">
+                <button
+                    id="back-to-report"
+                    class="select-location-button"
+                    type="button"
+                >
+                    ← Volver a editar
+                </button>
+
+                <button
+                    id="confirm-report"
+                    class="submit-report-button"
+                    type="button"
+                >
+                    Confirmar reporte
+                </button>
+            </div>
+        </div>
+    </form>
+
     </section>
 </div>
