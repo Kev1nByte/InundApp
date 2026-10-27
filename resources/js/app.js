@@ -1,4 +1,3 @@
-
 import './bootstrap';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -15,6 +14,219 @@ document.addEventListener('DOMContentLoaded', () => {
     const paitaCoordinates = [-5.0892, -81.1144];
 
     const map = L.map(mapElement).setView(paitaCoordinates, 14);
+
+    
+    // Buscador de calles y lugares.
+    const streetSearch = document.getElementById('street-search');
+
+    let searchMarker = null;
+    let searchTimeout = null;
+    let searchResults = [];
+
+    const searchResultsList = document.createElement('div');
+    searchResultsList.className = 'street-search-results';
+    searchResultsList.hidden = true;
+    searchResultsList.setAttribute('role', 'listbox');
+
+    streetSearch?.insertAdjacentElement('afterend', searchResultsList);
+
+    const searchPlace = async (query) => {
+        const searchText = query.trim();
+
+        if (searchText.length < 3) {
+            searchResultsList.hidden = true;
+            searchResultsList.replaceChildren();
+            return;
+        }
+
+        searchResultsList.hidden = false;
+        searchResultsList.replaceChildren();
+
+        const loading = document.createElement('div');
+        loading.className = 'street-search-message';
+        loading.textContent = 'Buscando lugares...';
+        searchResultsList.appendChild(loading);
+
+        try {
+            const params = new URLSearchParams({
+                q: `${searchText}, Paita, Piura, Peru`,
+                format: 'jsonv2',
+                limit: '5',
+                countrycodes: 'pe'
+            });
+
+            const response = await fetch(
+                `https://nominatim.openstreetmap.org/search?${params}`
+            );
+
+            if (!response.ok) {
+                throw new Error('Error al buscar lugares.');
+            }
+
+            const results = await response.json();
+
+            searchResultsList.replaceChildren();
+            searchResults = results;
+
+            if (results.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'street-search-message';
+                empty.textContent = 'No se encontraron lugares.';
+                searchResultsList.appendChild(empty);
+                return;
+            }
+
+            results.forEach((place, index) => {
+                const option = document.createElement('button');
+                option.type = 'button';
+                option.className = 'street-search-option';
+                option.textContent = place.display_name;
+                option.setAttribute('role', 'option');
+
+                option.addEventListener('click', () => {
+                    const coordinates = [
+                        Number(place.lat),
+                        Number(place.lon)
+                    ];
+
+                    map.setView(coordinates, 17);
+
+                    if (!searchMarker) {
+                        searchMarker = L.marker(coordinates).addTo(map);
+                    } else {
+                        searchMarker.setLatLng(coordinates);
+                    }
+
+                    searchMarker
+                        .bindPopup(place.display_name)
+                        .openPopup();
+
+                    streetSearch.value = place.display_name;
+                    searchResultsList.hidden = true;
+                });
+
+                searchResultsList.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error en el buscador:', error);
+            searchResultsList.replaceChildren();
+
+            const message = document.createElement('div');
+            message.className = 'street-search-message';
+            message.textContent =
+                'No se pudo realizar la búsqueda. Inténtalo nuevamente.';
+
+            searchResultsList.appendChild(message);
+        }
+    };
+
+    streetSearch?.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+
+        searchTimeout = setTimeout(() => {
+            searchPlace(streetSearch.value);
+        }, 700);
+    });
+
+    document.addEventListener('click', (event) => {
+        if (
+            !streetSearch?.contains(event.target) &&
+            !searchResultsList.contains(event.target)
+        ) {
+            searchResultsList.hidden = true;
+        }
+    });
+
+    
+    // Botón para detectar la ubicación actual.
+    const myLocationButton = document.getElementById(
+        'my-location-button'
+    );
+
+    let currentLocationMarker = null;
+    let currentAccuracyCircle = null;
+
+    const currentLocationIcon = L.divIcon({
+        className: 'current-location-icon',
+        html: '<span class="current-location-dot"></span>',
+        iconSize: [22, 22],
+        iconAnchor: [11, 11]
+    });
+
+    myLocationButton?.addEventListener('click', () => {
+        if (!navigator.geolocation) {
+            alert('Tu navegador no permite detectar la ubicación.');
+            return;
+        }
+
+        myLocationButton.disabled = true;
+
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude, accuracy } =
+                    position.coords;
+
+                const coordinates = [latitude, longitude];
+
+                // Centrar el mapa donde está el usuario.
+                map.setView(coordinates, 17);
+
+                if (!currentLocationMarker) {
+                    currentLocationMarker = L.marker(coordinates, {
+                        icon: currentLocationIcon,
+                        zIndexOffset: 2000
+                    }).addTo(map);
+                } else {
+                    currentLocationMarker.setLatLng(coordinates);
+                }
+
+                currentLocationMarker
+                    .bindPopup('Estás aquí')
+                    .openPopup();
+
+                // Círculo que representa el margen de precisión.
+                if (!currentAccuracyCircle) {
+                    currentAccuracyCircle = L.circle(
+                        coordinates,
+                        {
+                            radius: accuracy,
+                            color: '#2563eb',
+                            weight: 1,
+                            fillColor: '#3b82f6',
+                            fillOpacity: 0.12,
+                            interactive: false
+                        }
+                    ).addTo(map);
+                } else {
+                    currentAccuracyCircle
+                        .setLatLng(coordinates)
+                        .setRadius(accuracy);
+                }
+
+                myLocationButton.disabled = false;
+            },
+            (error) => {
+                const messages = {
+                    1: 'Debes permitir el acceso a tu ubicación.',
+                    2: 'No se pudo determinar tu ubicación. Comprueba los servicios de ubicación.',
+                    3: 'La detección tardó demasiado. Inténtalo nuevamente.'
+                };
+
+                alert(
+                    messages[error.code] ||
+                    'Ocurrió un error al detectar tu ubicación.'
+                );
+
+                myLocationButton.disabled = false;
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 10000
+            }
+        );
+    });
+
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors',
@@ -41,7 +253,6 @@ document.addEventListener('DOMContentLoaded', () => {
             icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 22 21H2L12 3Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 9v5m0 3h.01" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>'
         }
     };
-
 
     // Consultar los reportes registrados en Laravel.
     const loadReports = async () => {
@@ -141,14 +352,44 @@ document.addEventListener('DOMContentLoaded', () => {
                 photo.style.marginTop = '10px';
                 photo.style.cursor = 'pointer';
 
-                // Permitir abrir la imagen completa al pulsarla.
+                // Permitir abrir la imagen completa al pulsarla.    
                 photo.addEventListener('click', () => {
-                    window.open(
-                        report.photo_path,
-                        '_blank',
-                        'noopener,noreferrer'
-                    );
+                    const overlay = document.createElement('div');
+                    overlay.className = 'photo-lightbox';
+
+                    const fullImage = document.createElement('img');
+                    fullImage.src = report.photo_path;
+                    fullImage.alt = 'Fotografía ampliada del reporte de inundación';
+
+                    const closeButton = document.createElement('button');
+                    closeButton.type = 'button';
+                    closeButton.className = 'photo-lightbox-close';
+                    closeButton.textContent = '×';
+                    closeButton.setAttribute('aria-label', 'Cerrar fotografía');
+
+                    overlay.append(closeButton, fullImage);
+                    document.body.appendChild(overlay);
+
+                    const closeLightbox = () => overlay.remove();
+
+                    closeButton.addEventListener('click', closeLightbox);
+
+                    overlay.addEventListener('click', (event) => {
+                        if (event.target === overlay) {
+                            closeLightbox();
+                        }
+                    });
+
+                    const handleEscape = (event) => {
+                        if (event.key === 'Escape') {
+                            closeLightbox();
+                            document.removeEventListener('keydown', handleEscape);
+                        }
+                    };
+
+                    document.addEventListener('keydown', handleEscape);
                 });
+
 
                 popup.appendChild(photo);
             }
@@ -270,44 +511,96 @@ document.addEventListener('DOMContentLoaded', () => {
             closeModal();
         }
     });
-
-    // Activar el modo de selección de ubicación.
+    
+    // Activar selección con la ubicación actual como punto inicial.
     selectLocationButton?.addEventListener('click', () => {
-        if (reportModal) {
-            reportModal.hidden = true;
+        if (!navigator.geolocation) {
+            showFormMessage(
+                'Tu navegador no permite detectar la ubicación.'
+            );
+            return;
         }
 
-        document.body.style.overflow = '';
-        selectingLocation = true;
+        selectLocationButton.disabled = true;
+        showFormMessage('Obteniendo tu ubicación actual...');
 
-        mapElement.classList.add('map-selecting-location');
-        map.getContainer().style.cursor = 'crosshair';
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+                const coordinates = [lat, lng];
 
-        if (!previewMarker) {
-            previewMarker = L.marker(map.getCenter(), {
-                icon: previewIcon,
-                interactive: false,
-                zIndexOffset: 1000
-            }).addTo(map);
-        } else {
-            previewMarker
-                .setLatLng(map.getCenter())
-                .addTo(map);
-        }
+                // Centrar el mapa en la ubicación detectada.
+                map.setView(coordinates, 17);
 
-        mapElement.scrollIntoView({
-            behavior: 'smooth',
-            block: 'center'
-        });
+                // Mostrar el marcador de ubicación.
+                if (!previewMarker) {
+                    previewMarker = L.marker(coordinates, {
+                        icon: previewIcon,
+                        draggable: false,
+                        zIndexOffset: 3000
+                    }).addTo(map);
+                } else {
+                    previewMarker.setLatLng(coordinates);
+
+                    if (!map.hasLayer(previewMarker)) {
+                        previewMarker.addTo(map);
+                    }
+
+                    previewMarker.setZIndexOffset(3000);
+                }
+
+                previewMarker
+                    .bindPopup('Ubicación actual para el reporte', {
+                        offset: [0, -10],
+                        closeButton: true,
+                        autoPan: false
+                    })
+                    .openPopup();
+
+                previewMarker.getElement()?.classList.add('report-location-confirmed');
+
+                // Guardar las coordenadas en el formulario.
+                latitudeInput.value = lat.toFixed(7);
+                longitudeInput.value = lng.toFixed(7);
+
+                locationInput.value =
+                    `Latitud: ${lat.toFixed(5)}, Longitud: ${lng.toFixed(5)}`;
+
+                locationMarker = previewMarker;
+
+                showFormMessage(
+                    'Se está utilizando tu ubicación actual para registrar este reporte.'
+                );
+
+                showLocationSuccess(
+                    '¡Ubicación detectada!'
+                );
+
+                selectLocationButton.disabled = false;
+            },
+            (error) => {
+                const messages = {
+                    1: 'Debes permitir el acceso a tu ubicación.',
+                    2: 'No se pudo determinar tu ubicación.',
+                    3: 'La detección tardó demasiado. Inténtalo nuevamente.'
+                };
+
+                showFormMessage(
+                    messages[error.code] ||
+                    'No se pudo obtener tu ubicación.'
+                );
+
+                selectLocationButton.disabled = false;
+            },
+            {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 10000
+            }
+        );
     });
-
-    // El marcador provisional sigue el cursor.
-    map.on('mousemove', (event) => {
-        if (selectingLocation && previewMarker) {
-            previewMarker.setLatLng(event.latlng);
-        }
-    });
-
+    
     // Registrar la ubicación seleccionada.
     map.on('click', (event) => {
         if (!selectingLocation) return;
@@ -317,12 +610,17 @@ document.addEventListener('DOMContentLoaded', () => {
         latitudeInput.value = lat.toFixed(7);
         longitudeInput.value = lng.toFixed(7);
 
-        if (locationMarker) {
+        if (previewMarker) {
+            previewMarker.setLatLng(event.latlng);
+            locationMarker = previewMarker;
+            previewMarker = null;
+        } else if (locationMarker) {
             locationMarker.setLatLng(event.latlng);
         } else {
-            locationMarker = L.marker(event.latlng).addTo(map);
+            locationMarker = L.marker(event.latlng, {
+                icon: previewIcon
+            }).addTo(map);
         }
-
         locationMarker
             .bindPopup('Ubicación seleccionada para el reporte')
             .openPopup();
@@ -334,15 +632,43 @@ document.addEventListener('DOMContentLoaded', () => {
         mapElement.classList.remove('map-selecting-location');
         map.getContainer().style.cursor = '';
 
-        if (previewMarker) {
-            map.removeLayer(previewMarker);
-        }
-
         if (reportModal) {
             reportModal.hidden = false;
             document.body.style.overflow = 'hidden';
         }
     });
+    
+    const showLocationSuccess = (message) => {
+        const notification = document.createElement('div');
+
+        notification.textContent = `✓ ${message}`;
+        notification.setAttribute('role', 'status');
+        notification.setAttribute('aria-live', 'polite');
+
+        Object.assign(notification.style, {
+            position: 'fixed',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            background: '#16a34a',
+            color: '#ffffff',
+            padding: '14px 20px',
+            borderRadius: '10px',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.2)',
+            zIndex: '99999',
+            width: 'max-content',
+            maxWidth: '90%',
+            fontSize: '14px',
+            fontWeight: '600',
+            textAlign: 'center'
+        });
+
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.remove();
+        }, 3500);
+    };
 
     // Preparar la revisión del reporte.
     reportForm?.addEventListener('submit', (event) => {
@@ -384,6 +710,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        
         if (photo) {
             const validTypes = [
                 'image/jpeg',
@@ -391,16 +718,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 'image/webp'
             ];
 
-            if (
-                !validTypes.includes(photo.type) ||
-                photo.size > 5 * 1024 * 1024
-            ) {
+            if (!validTypes.includes(photo.type)) {
                 showFormMessage(
-                    'Selecciona una imagen JPG, PNG o WebP de máximo 5 MB.'
+                    'Solo se permiten fotografías JPG, PNG o WebP.'
+                );
+                return;
+            }
+
+            if (photo.size > 5 * 1024 * 1024) {
+                showFormMessage(
+                    'La fotografía no debe superar los 5 MB.'
                 );
                 return;
             }
         }
+
 
         reviewLocation.textContent = locationInput.value;
         reviewCoordinates.textContent =
@@ -524,7 +856,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             
             const successMessage =
-                result.message || 'Reporte registrado correctamente.';4
+                result.message || 'Reporte registrado correctamente.';
 
                 // Actualizar los marcadores con los datos guardados en el servidor.
                 await loadReports();    

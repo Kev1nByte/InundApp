@@ -52,6 +52,8 @@ input {
    ============================== */
 
 .app-header {
+    position: relative;
+    z-index: 2000;
     padding: 18px;
     background: var(--color-primary);
     color: var(--color-surface);
@@ -698,6 +700,47 @@ input {
     transition: transform 150ms ease, box-shadow 150ms ease;
 }
 
+
+/* Botón para encontrar la ubicación actual */
+.map-container {
+    position: relative;
+    width: 100%;
+}
+
+.my-location-button {
+    position: absolute;
+    right: 14px;
+    bottom: 24px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    padding: 0;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    background: #ffffff;
+    color: #334155;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+.my-location-button svg {
+    width: 24px;
+    height: 24px;
+}
+
+.my-location-button:hover {
+    background: #f1f5f9;
+}
+
+.my-location-button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+
 .flood-report-marker svg {
     display: block;
     width: 21px;
@@ -709,6 +752,121 @@ input {
     transform: scale(1.12);
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
 }
+
+
+.leaflet-div-icon.current-location-icon {
+    background: transparent;
+    border: none;
+}
+
+.current-location-dot {
+    display: block;
+    width: 22px;
+    height: 22px;
+    box-sizing: border-box;
+    border: 4px solid #ffffff;
+    border-radius: 50%;
+    background: #2563eb;
+    box-shadow: 0 0 0 2px #2563eb,
+                0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+
+.street-search-results {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    z-index: 2000;
+    max-height: 280px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.15);
+}
+
+.street-search-results[hidden] {
+    display: none;
+}
+
+.street-search-option {
+    display: block;
+    width: 100%;
+    padding: 12px 14px;
+    border: 0;
+    border-bottom: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #334155;
+    text-align: left;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.street-search-option:hover,
+.street-search-option:focus {
+    background: #eff6ff;
+}
+
+.street-search-message {
+    padding: 12px 14px;
+    color: #64748b;
+    font-size: 13px;
+}
+
+
+/* Pin provisional para seleccionar la ubicación del reporte */
+.leaflet-div-icon.location-preview-icon {
+    background: transparent !important;
+    border: none !important;
+}
+
+.location-preview-icon .location-pin {
+    display: block;
+    width: 24px;
+    height: 24px;
+    background-color: #ef4444;
+    border: 3px solid #ffffff;
+    border-radius: 50% 50% 50% 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+    box-sizing: border-box;
+    transform: rotate(-45deg);
+}
+
+.photo-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0, 0, 0, 0.88);
+}
+
+.photo-lightbox img {
+    display: block;
+    max-width: 100%;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: 8px;
+}
+
+.photo-lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 50%;
+    background: #ffffff;
+    color: #111827;
+    font-size: 32px;
+    cursor: pointer;
+}
+
+
 
 
 

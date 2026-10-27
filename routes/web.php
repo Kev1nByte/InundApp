@@ -15,7 +15,3 @@ Route::post('/reportes', [FloodReportController::class, 'store'])
 
 Route::get('/reportes', [FloodReportController::class, 'index'])
     ->name('reportes.index');
-
-Route::post('/reportes', [FloodReportController::class, 'store'])
-    ->name('reportes.store');
-

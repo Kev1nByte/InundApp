@@ -36,13 +36,13 @@
             </div>
 
             <div class="form-group">
-                <label for="report-location">Ubicación de la calle</label>
+                <label for="report-location">Ubicación del reporte</label>
 
                 <input
                     id="report-location"
                     name="location"
                     type="text"
-                    placeholder="Selecciona un punto en el mapa"
+                    placeholder="Se registrará tu ubicación actual"
                     readonly
                     required
                 >
@@ -52,13 +52,15 @@
                     class="select-location-button"
                     type="button"
                 >
-                    📍 Seleccionar en el mapa
+                    📍 Usar mi ubicación actual
                 </button>
 
                 <input id="report-latitude" name="latitude" type="hidden">
                 <input id="report-longitude" name="longitude" type="hidden">
 
-                <small>Selecciona la ubicación exacta de la calle afectada.</small>
+                <small>
+                    El reporte se registrará en tu posición actual. Debes permitir el acceso a tu ubicación.
+                </small>
             </div>
 
             <div class="form-group">
